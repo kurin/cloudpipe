@@ -1,4 +1,4 @@
-package main
+package counter
 
 import (
 	"testing"
@@ -12,13 +12,13 @@ type addOp struct {
 
 func TestCounter(t *testing.T) {
 	table := []struct {
-		c *counter
+		c *Counter
 		v []addOp
 		t time.Time
 		w int
 	}{
 		{
-			c: &counter{
+			c: &Counter{
 				vals: make([]int, 10),
 				res:  time.Second,
 			},
@@ -32,7 +32,7 @@ func TestCounter(t *testing.T) {
 			w: 1,
 		},
 		{
-			c: &counter{
+			c: &Counter{
 				vals: make([]int, 10),
 				res:  time.Second,
 			},
@@ -62,15 +62,16 @@ func TestCounter(t *testing.T) {
 	}
 }
 
-func TestPerSecond(t *testing.T) {
+func TestPer(t *testing.T) {
 	table := []struct {
-		c *counter
+		c *Counter
 		v []addOp
 		t time.Time
+		p time.Duration
 		w float64
 	}{
 		{
-			c: &counter{
+			c: &Counter{
 				vals: make([]int, 4),
 				res:  time.Second,
 			},
@@ -95,11 +96,12 @@ func TestPerSecond(t *testing.T) {
 					i: 1024 * 1024,
 				},
 			},
+			p: time.Second,
 			t: time.Unix(4, 6e8),
 			w: 1024 * 1024,
 		},
 		{
-			c: &counter{
+			c: &Counter{
 				vals: make([]int, 2),
 				res:  time.Second,
 			},
@@ -116,11 +118,12 @@ func TestPerSecond(t *testing.T) {
 					i: 10,
 				},
 			},
+			p: time.Second,
 			t: time.Unix(11, 6e8),
 			w: 20,
 		},
 		{
-			c: &counter{
+			c: &Counter{
 				vals: make([]int, 2),
 				res:  time.Second,
 			},
@@ -137,11 +140,12 @@ func TestPerSecond(t *testing.T) {
 					i: 0,
 				},
 			},
+			p: time.Second,
 			t: time.Unix(11, 6e8),
 			w: 1024 * 1024,
 		},
 		{
-			c: &counter{
+			c: &Counter{
 				vals: make([]int, 90),
 				res:  time.Second,
 			},
@@ -155,6 +159,7 @@ func TestPerSecond(t *testing.T) {
 					i: 0,
 				},
 			},
+			p: time.Second,
 			t: time.Unix(12, 0),
 			w: 1024 * 1024,
 		},
@@ -164,7 +169,7 @@ func TestPerSecond(t *testing.T) {
 		for _, op := range ent.v {
 			ent.c.add(op.t, op.i)
 		}
-		got := ent.c.perSecond(ent.t)
+		got := ent.c.per(ent.t, ent.p)
 		if got != ent.w {
 			t.Errorf("counter %v: got %f, want %f", ent.c, got, ent.w)
 		}
@@ -172,7 +177,7 @@ func TestPerSecond(t *testing.T) {
 }
 
 func BenchmarkCounter(b *testing.B) {
-	c := &counter{
+	c := &Counter{
 		vals: make([]int, 900),
 		res:  time.Second,
 	}
