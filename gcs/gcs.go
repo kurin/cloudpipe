@@ -22,15 +22,16 @@ type Endpoint struct {
 	// false, writes to existing objects will fail.
 	Overwrite bool
 
-	client *storage.Client
-	bucket string
+	client         *storage.Client
+	bucket, object string
 }
 
 // Writer returns a writer for the given object name.  If TrueNames is false,
 // the name is encoded with base64, to prevent slashes from causing weirdness
 // with the GCS bucket browser.
-func (e *Endpoint) Writer(ctx context.Context, name string) (io.WriteCloser, error) {
+func (e *Endpoint) Writer(ctx context.Context) (io.WriteCloser, error) {
 	bucket := e.client.Bucket(e.bucket)
+	name := e.object
 	if !e.TrueNames {
 		name = base64.StdEncoding.EncodeToString([]byte(name))
 	}
@@ -43,7 +44,7 @@ func (e *Endpoint) Writer(ctx context.Context, name string) (io.WriteCloser, err
 
 // New returns an Endpoint for the given bucket.  Auth should point to the
 // project's private key in JSON format.
-func New(ctx context.Context, auth, bucket string) (*Endpoint, error) {
+func New(ctx context.Context, auth, bucket, object string) (*Endpoint, error) {
 	c, err := client(ctx, auth)
 	if err != nil {
 		return nil, err
@@ -51,6 +52,7 @@ func New(ctx context.Context, auth, bucket string) (*Endpoint, error) {
 	return &Endpoint{
 		client: c,
 		bucket: bucket,
+		object: object,
 	}, nil
 }
 

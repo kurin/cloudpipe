@@ -47,7 +47,7 @@ func (iw *infoWriter) status() string {
 }
 
 type endpoint interface {
-	Writer(ctx context.Context, name string) (io.WriteCloser, error)
+	Writer(ctx context.Context) (io.WriteCloser, error)
 }
 
 func parseURI(ctx context.Context, uri string) (endpoint, error) {
@@ -58,7 +58,8 @@ func parseURI(ctx context.Context, uri string) (endpoint, error) {
 	switch url.Scheme {
 	case "gcs":
 		bucket := url.Host
-		ep, err := gcs.New(ctx, *auth, bucket)
+		object := url.Path
+		ep, err := gcs.New(ctx, *auth, bucket, object)
 		if err != nil {
 			return nil, err
 		}
@@ -75,7 +76,7 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	wc, err := ep.Writer(ctx, *objectName)
+	wc, err := ep.Writer(ctx)
 	if err != nil {
 		log.Fatal(err)
 	}
