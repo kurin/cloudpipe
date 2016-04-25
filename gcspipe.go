@@ -16,11 +16,10 @@ import (
 )
 
 var (
-	auth       = flag.String("auth", "", "Path to JSON keyfile.")
-	destURI    = flag.String("uri", "", "Destination URI.")
-	objectName = flag.String("name", "", "Destination name.")
-	b64name    = flag.Bool("b64", false, "Base64-encode the object name.")
-	verbose    = flag.Bool("verbose", false, "Print progress every 10 seconds.")
+	auth    = flag.String("auth", "", "Path to JSON keyfile.")
+	destURI = flag.String("uri", "", "Destination URI.")
+	b64name = flag.Bool("b64", false, "Base64-encode the object name.")
+	verbose = flag.Bool("verbose", false, "Print progress every 10 seconds.")
 )
 
 type infoWriter struct {
