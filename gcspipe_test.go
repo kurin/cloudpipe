@@ -170,3 +170,14 @@ func TestPerSecond(t *testing.T) {
 		}
 	}
 }
+
+func BenchmarkCounter(b *testing.B) {
+	c := &counter{
+		vals: make([]int, 900),
+		res:  time.Second,
+	}
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		c.add(time.Unix(0, int64(i)*1000000), i)
+	}
+}
