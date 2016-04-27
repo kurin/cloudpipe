@@ -7,7 +7,6 @@ import (
 	"log"
 	"net/url"
 	"os"
-	"strings"
 	"time"
 
 	"github.com/kurin/gcspipe/counter"
@@ -57,10 +56,7 @@ func parseURI(ctx context.Context, uri string) (endpoint, error) {
 	}
 	switch url.Scheme {
 	case "gcs":
-		bucket := url.Host
-		object := url.Path
-		object = strings.TrimPrefix(object, "/")
-		ep, err := gcs.New(ctx, *auth, bucket, object)
+		ep, err := gcs.New(ctx, *auth, url)
 		if err != nil {
 			return nil, err
 		}

@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
+	"net/url"
+	"strings"
 
 	"golang.org/x/net/context"
 	"golang.org/x/oauth2/google"
@@ -44,11 +46,14 @@ func (e *Endpoint) Writer(ctx context.Context) (io.WriteCloser, error) {
 
 // New returns an Endpoint for the given bucket.  Auth should point to the
 // project's private key in JSON format.
-func New(ctx context.Context, auth, bucket, object string) (*Endpoint, error) {
+func New(ctx context.Context, auth string, url *url.URL) (*Endpoint, error) {
 	c, err := client(ctx, auth)
 	if err != nil {
 		return nil, err
 	}
+	bucket := url.Host
+	object := url.Path
+	object = strings.TrimPrefix(object, "/")
 	return &Endpoint{
 		client: c,
 		bucket: bucket,
