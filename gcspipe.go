@@ -42,8 +42,8 @@ func (iw *infoWriter) Close() error {
 
 func (iw *infoWriter) status() string {
 	sent := size(iw.n)
-	speed := size(iw.c.Per(time.Second))
-	return fmt.Sprintf("wrote %s (%s/s)", sent, speed)
+	rate := speed(iw.c.Per(time.Second))
+	return fmt.Sprintf("wrote %s (%s)", sent, rate)
 }
 
 type endpoint interface {
@@ -88,8 +88,13 @@ func main() {
 	}
 	if *verbose {
 		go func() {
-			for range time.Tick(10 * time.Second) {
-				fmt.Println(w.status())
+			var max int
+			for range time.Tick(time.Second) {
+				s := w.status()
+				if max > len(s) {
+					max = len(s)
+				}
+				fmt.Printf("\r%-*s\r", max-len(s), w.status())
 			}
 		}()
 	}
@@ -104,13 +109,27 @@ func main() {
 	}
 }
 
+var suffixes = []string{"", "k", "M", "G", "T", "P", "E"}
+
+type speed float64
+
+func (s speed) String() string {
+	s *= 8
+	for i := 0; i <= len(suffixes); i++ {
+		if s < 1024 {
+			return fmt.Sprintf("%.2f%sbps", s, suffixes[i])
+		}
+		s /= 1024
+	}
+	return fmt.Sprintf("%.2fZbps", s)
+}
+
 type size float64
 
 func (s size) String() string {
-	suffixes := []string{"B", "kB", "MB", "GB", "TB", "PB", "EB"}
 	for i := 0; i <= len(suffixes); i++ {
 		if s < 1024 {
-			return fmt.Sprintf("%.2f%s", s, suffixes[i])
+			return fmt.Sprintf("%.2f%sB", s, suffixes[i])
 		}
 		s /= 1024
 	}
