@@ -28,7 +28,7 @@ import (
 	"google.golang.org/cloud/storage"
 )
 
-// Endpoint satisfies the gcspipe.endpoint interface.
+// Endpoint satisfies the cloudpipe.endpoint interface.
 type Endpoint struct {
 	// TrueNames controls whether object names will be base64-encoded or not.  If
 	// false, they will be so encoded.

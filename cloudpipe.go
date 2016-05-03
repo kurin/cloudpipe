@@ -23,8 +23,8 @@ import (
 	"os"
 	"time"
 
-	"github.com/kurin/gcspipe/counter"
-	"github.com/kurin/gcspipe/gcs"
+	"github.com/kurin/cloudpipe/counter"
+	"github.com/kurin/cloudpipe/gcs"
 
 	"golang.org/x/net/context"
 )
