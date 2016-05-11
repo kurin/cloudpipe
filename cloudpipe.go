@@ -9,9 +9,9 @@ import (
 	"os"
 	"time"
 
-	"github.com/kurin/gcspipe/b2"
-	"github.com/kurin/gcspipe/counter"
-	"github.com/kurin/gcspipe/gcs"
+	"github.com/kurin/cloudpipe/b2"
+	"github.com/kurin/cloudpipe/counter"
+	"github.com/kurin/cloudpipe/gcs"
 
 	"golang.org/x/net/context"
 )
@@ -21,6 +21,7 @@ var (
 	destURI = flag.String("uri", "", "Destination URI.")
 	b64name = flag.Bool("b64", false, "Base64-encode the object name.")
 	verbose = flag.Bool("verbose", false, "Print progress every 10 seconds.")
+	resume  = flag.Bool("resume", false, "Resume an upload, if the backend supports it.")
 )
 
 type infoWriter struct {
@@ -64,7 +65,13 @@ func parseURI(ctx context.Context, uri string) (endpoint, error) {
 		ep.TrueNames = !*b64name
 		return ep, nil
 	case "b2":
-		return b2.New(ctx, *auth, url)
+		ep, err := b2.New(ctx, *auth, url)
+		if err != nil {
+			return nil, err
+		}
+		ep.TrueNames = !*b64name
+		ep.Resume = *resume
+		return ep, nil
 	}
 	return nil, fmt.Errorf("%s: unknown scheme", url.Scheme)
 }
