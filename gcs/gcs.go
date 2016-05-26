@@ -58,6 +58,8 @@ func (e *Endpoint) Writer(ctx context.Context) (io.WriteCloser, error) {
 	return obj.NewWriter(ctx), nil
 }
 
+func (e *Endpoint) Label(string) {}
+
 // New returns an Endpoint for the given bucket.  Auth should point to the
 // project's private key in JSON format.
 func New(ctx context.Context, auth string, url *url.URL) (*Endpoint, error) {

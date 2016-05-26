@@ -36,6 +36,7 @@ var (
 	b64name = flag.Bool("b64", false, "Base64-encode the object name.")
 	verbose = flag.Bool("verbose", false, "Print progress every 10 seconds.")
 	resume  = flag.Bool("resume", false, "Resume an upload, if the backend supports it.")
+	labels  = flag.String("labels", "", "Comma-separated key=value pairs.")
 )
 
 type infoWriter struct {
@@ -63,6 +64,7 @@ func (iw *infoWriter) status() string {
 
 type endpoint interface {
 	Writer(ctx context.Context) (io.WriteCloser, error)
+	Label(string)
 }
 
 func parseURI(ctx context.Context, uri string) (endpoint, error) {
@@ -96,6 +98,9 @@ func main() {
 	ep, err := parseURI(ctx, *destURI)
 	if err != nil {
 		log.Fatal(err)
+	}
+	if *labels != "" {
+		ep.Label(*labels)
 	}
 	wc, err := ep.Writer(ctx)
 	if err != nil {

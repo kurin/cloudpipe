@@ -31,8 +31,9 @@ type Endpoint struct {
 	TrueNames bool
 	Resume    bool
 
-	b2   *b2.Bucket
-	path string
+	attrs *b2.Attrs
+	b2    *b2.Bucket
+	path  string
 }
 
 func New(ctx context.Context, auth string, uri *url.URL) (*Endpoint, error) {
@@ -59,5 +60,22 @@ func (e *Endpoint) Writer(ctx context.Context) (io.WriteCloser, error) {
 	w := e.b2.Object(name).NewWriter(ctx)
 	w.ConcurrentUploads = 4
 	w.Resume = e.Resume
+	if e.attrs != nil {
+		w = w.WithAttrs(e.attrs)
+	}
 	return w, nil
+}
+
+func (e *Endpoint) Label(l string) {
+	labels := strings.Split(l, ",")
+	m := make(map[string]string)
+	for _, label := range labels {
+		i := strings.Index(label, "=")
+		if i < 0 {
+			continue
+		}
+		key, val := label[:i], label[i+1:]
+		m[strings.Trim(key, " ")] = strings.Trim(val, " ")
+	}
+	e.attrs = &b2.Attrs{Info: m}
 }
