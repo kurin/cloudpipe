@@ -40,6 +40,7 @@ type Endpoint struct {
 
 	client         *storage.Client
 	bucket, object string
+	m              map[string]string
 }
 
 // Writer returns a writer for the given object name.  If TrueNames is false,
@@ -55,10 +56,22 @@ func (e *Endpoint) Writer(ctx context.Context) (io.WriteCloser, error) {
 	if !e.Overwrite {
 		obj = obj.WithConditions(storage.IfGenerationMatch(0))
 	}
-	return obj.NewWriter(ctx), nil
+	w := obj.NewWriter(ctx)
+	w.ObjectAttrs.Metadata = e.m
+	return w, nil
 }
 
-func (e *Endpoint) Label(string) {}
+func (e *Endpoint) Label(l string) {
+	labels := strings.Split(l, ",")
+	e.m = make(map[string]string)
+	for _, l := range labels {
+		parts := strings.SplitN(l, "=", 2)
+		if len(parts) != 2 {
+			continue
+		}
+		e.m[parts[0]] = parts[1]
+	}
+}
 
 // New returns an Endpoint for the given bucket.  Auth should point to the
 // project's private key in JSON format.
