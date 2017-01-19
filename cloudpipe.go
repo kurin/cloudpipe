@@ -15,6 +15,7 @@
 package main
 
 import (
+	"context"
 	"flag"
 	"fmt"
 	"io"
@@ -26,8 +27,6 @@ import (
 	"github.com/kurin/cloudpipe/b2"
 	"github.com/kurin/cloudpipe/counter"
 	"github.com/kurin/cloudpipe/gcs"
-
-	"golang.org/x/net/context"
 )
 
 var (
