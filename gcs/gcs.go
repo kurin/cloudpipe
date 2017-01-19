@@ -15,6 +15,7 @@
 package gcs
 
 import (
+	"context"
 	"encoding/base64"
 	"fmt"
 	"io"
@@ -22,10 +23,11 @@ import (
 	"net/url"
 	"strings"
 
-	"golang.org/x/net/context"
+	"google.golang.org/api/option"
+
+	"cloud.google.com/go/storage"
+
 	"golang.org/x/oauth2/google"
-	"google.golang.org/cloud"
-	"google.golang.org/cloud/storage"
 )
 
 // Endpoint satisfies the cloudpipe.endpoint interface.
@@ -54,7 +56,7 @@ func (e *Endpoint) Writer(ctx context.Context) (io.WriteCloser, error) {
 	}
 	obj := bucket.Object(name)
 	if !e.Overwrite {
-		obj = obj.WithConditions(storage.IfGenerationMatch(0))
+		obj = obj.If(storage.Conditions{DoesNotExist: true})
 	}
 	w := obj.NewWriter(ctx)
 	w.ObjectAttrs.Metadata = e.m
@@ -102,5 +104,5 @@ func client(ctx context.Context, auth string) (*storage.Client, error) {
 	if err != nil {
 		return nil, err
 	}
-	return storage.NewClient(ctx, cloud.WithTokenSource(conf.TokenSource(ctx)))
+	return storage.NewClient(ctx, option.WithTokenSource(conf.TokenSource(ctx)))
 }
