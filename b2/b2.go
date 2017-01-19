@@ -15,6 +15,7 @@
 package b2
 
 import (
+	"context"
 	"encoding/base64"
 	"encoding/json"
 	"io"
@@ -23,8 +24,6 @@ import (
 	"strings"
 
 	"github.com/kurin/blazer/b2"
-
-	"golang.org/x/net/context"
 )
 
 type authTicket struct {
@@ -59,7 +58,7 @@ func New(ctx context.Context, auth string, uri *url.URL) (*Endpoint, error) {
 	if err != nil {
 		return nil, err
 	}
-	bucket, err := client.Bucket(ctx, uri.Host)
+	bucket, err := client.NewBucket(ctx, uri.Host, nil)
 	return &Endpoint{
 		b2:   bucket,
 		path: strings.TrimPrefix(uri.Path, "/"),
