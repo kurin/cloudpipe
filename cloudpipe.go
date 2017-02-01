@@ -22,49 +22,22 @@ import (
 	"log"
 	"net/url"
 	"os"
-	"time"
-
-	_ "net/http/pprof"
 
 	"github.com/kurin/cloudpipe/b2"
-	"github.com/kurin/cloudpipe/counter"
+	"github.com/kurin/cloudpipe/file"
 	"github.com/kurin/cloudpipe/gcs"
 )
 
 var (
-	auth    = flag.String("auth", "", "Path to JSON keyfile.")
-	destURI = flag.String("uri", "", "Destination URI.")
-	b64name = flag.Bool("b64", false, "Base64-encode the object name.")
-	verbose = flag.Bool("verbose", false, "Print progress every 10 seconds.")
-	resume  = flag.Bool("resume", false, "Resume an upload, if the backend supports it.")
-	labels  = flag.String("labels", "", "Comma-separated key=value pairs.")
+	auth        = flag.String("auth", "", "Path to JSON keyfile (gcs, b2).")
+	resume      = flag.Bool("resume", false, "Resume an upload (b2).")
+	connections = flag.Int("connections", 4, "Number of simultaneous connections (b2).")
+	labels      = flag.String("labels", "", "Comma-separated key=value pairs (gcs, b2).")
 )
-
-type infoWriter struct {
-	wc io.WriteCloser
-	n  int
-	c  *counter.Counter
-}
-
-func (iw *infoWriter) Write(p []byte) (int, error) {
-	n, err := iw.wc.Write(p)
-	iw.c.Add(n)
-	iw.n += n
-	return n, err
-}
-
-func (iw *infoWriter) Close() error {
-	return iw.wc.Close()
-}
-
-func (iw *infoWriter) status() string {
-	sent := size(iw.n)
-	rate := speed(iw.c.Per(time.Second))
-	return fmt.Sprintf("wrote %s (%s)", sent, rate)
-}
 
 type endpoint interface {
 	Writer(ctx context.Context) (io.WriteCloser, error)
+	Reader(ctx context.Context) (io.ReadCloser, error)
 	Label(string)
 }
 
@@ -79,85 +52,61 @@ func parseURI(ctx context.Context, uri string) (endpoint, error) {
 		if err != nil {
 			return nil, err
 		}
-		ep.TrueNames = !*b64name
 		return ep, nil
 	case "b2":
 		ep, err := b2.New(ctx, *auth, url)
 		if err != nil {
 			return nil, err
 		}
-		ep.TrueNames = !*b64name
 		ep.Resume = *resume
 		return ep, nil
+	case "file", "":
+		return file.Path(url.Path), nil
 	}
 	return nil, fmt.Errorf("%s: unknown scheme", url.Scheme)
 }
 
 func main() {
 	flag.Parse()
+	if flag.NArg() != 2 {
+		flag.Usage()
+		os.Exit(1)
+	}
+
+	srcArg := flag.Args()[0]
+	dstArg := flag.Args()[1]
+
 	ctx := context.Background()
-	ep, err := parseURI(ctx, *destURI)
-	if err != nil {
-		log.Fatal(err)
-	}
-	if *labels != "" {
-		ep.Label(*labels)
-	}
-	wc, err := ep.Writer(ctx)
+
+	src, err := parseURI(ctx, srcArg)
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	w := &infoWriter{
-		wc: wc,
-		c:  counter.New(90*time.Second, time.Second),
+	dst, err := parseURI(ctx, dstArg)
+	if err != nil {
+		log.Fatal(err)
 	}
-	if *verbose {
-		go func() {
-			var max int
-			for range time.Tick(time.Second) {
-				s := w.status()
-				if max > len(s) {
-					max = len(s)
-				}
-				fmt.Printf("\r%-*s\r", max-len(s), w.status())
-			}
-		}()
+
+	if *labels != "" {
+		src.Label(*labels)
+		dst.Label(*labels)
 	}
-	if _, err := io.Copy(w, os.Stdin); err != nil {
+
+	r, err := src.Reader(ctx)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	w, err := dst.Writer(ctx)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	if _, err := io.Copy(w, r); err != nil {
 		log.Fatal(err)
 	}
 	if err := w.Close(); err != nil {
 		log.Fatal(err)
 	}
-	if *verbose {
-		fmt.Println(w.status())
-	}
-}
-
-var suffixes = []string{"", "k", "M", "G", "T", "P", "E"}
-
-type speed float64
-
-func (s speed) String() string {
-	s *= 8
-	for i := 0; i <= len(suffixes); i++ {
-		if s < 1024 {
-			return fmt.Sprintf("%.2f%sbps", s, suffixes[i])
-		}
-		s /= 1024
-	}
-	return fmt.Sprintf("%.2fZbps", s)
-}
-
-type size float64
-
-func (s size) String() string {
-	for i := 0; i <= len(suffixes); i++ {
-		if s < 1024 {
-			return fmt.Sprintf("%.2f%sB", s, suffixes[i])
-		}
-		s /= 1024
-	}
-	return fmt.Sprintf("%.2fZB", s)
 }
