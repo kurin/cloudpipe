@@ -23,9 +23,9 @@ import (
 	"net/url"
 	"os"
 
-	"github.com/kurin/cloudpipe/b2"
-	"github.com/kurin/cloudpipe/file"
-	"github.com/kurin/cloudpipe/gcs"
+	"github.com/kurin/cloudpipe/backends/b2"
+	"github.com/kurin/cloudpipe/backends/file"
+	"github.com/kurin/cloudpipe/backends/gcs"
 )
 
 var (
