@@ -41,7 +41,16 @@ type endpoint interface {
 	Label(string)
 }
 
+type std struct{}
+
+func (std) Label(string)                                   {}
+func (std) Writer(context.Context) (io.WriteCloser, error) { return os.Stdout, nil }
+func (std) Reader(context.Context) (io.ReadCloser, error)  { return os.Stdin, nil }
+
 func parseURI(ctx context.Context, uri string) (endpoint, error) {
+	if uri == "-" {
+		return std{}, nil
+	}
 	url, err := url.Parse(uri)
 	if err != nil {
 		return nil, err
