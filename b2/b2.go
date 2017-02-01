@@ -16,7 +16,6 @@ package b2
 
 import (
 	"context"
-	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"html/template"
@@ -87,9 +86,6 @@ func New(ctx context.Context, auth string, uri *url.URL) (*Endpoint, error) {
 
 func (e *Endpoint) Writer(ctx context.Context) (io.WriteCloser, error) {
 	name := e.path
-	if !e.TrueNames {
-		name = base64.StdEncoding.EncodeToString([]byte(name))
-	}
 	w := e.b2.Object(name).NewWriter(ctx)
 	w.ConcurrentUploads = 4
 	w.Resume = e.Resume
@@ -97,6 +93,12 @@ func (e *Endpoint) Writer(ctx context.Context) (io.WriteCloser, error) {
 		w = w.WithAttrs(e.attrs)
 	}
 	return w, nil
+}
+
+func (e *Endpoint) Reader(ctx context.Context) (io.ReadCloser, error) {
+	r := e.b2.Object(e.path).NewReader(ctx)
+	r.ConcurrentDownloads = 4
+	return r, nil
 }
 
 func (e *Endpoint) Label(l string) {

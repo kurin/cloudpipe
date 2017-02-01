@@ -63,6 +63,10 @@ func (e *Endpoint) Writer(ctx context.Context) (io.WriteCloser, error) {
 	return w, nil
 }
 
+func (e *Endpoint) Reader(ctx context.Context) (io.ReadCloser, error) {
+	return e.client.Bucket(e.bucket).Object(e.object).NewReader(ctx)
+}
+
 func (e *Endpoint) Label(l string) {
 	labels := strings.Split(l, ",")
 	e.m = make(map[string]string)
