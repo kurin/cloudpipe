@@ -24,6 +24,8 @@ import (
 	"os"
 	"time"
 
+	_ "net/http/pprof"
+
 	"github.com/kurin/cloudpipe/b2"
 	"github.com/kurin/cloudpipe/counter"
 	"github.com/kurin/cloudpipe/gcs"

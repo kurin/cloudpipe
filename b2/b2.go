@@ -18,18 +18,29 @@ import (
 	"context"
 	"encoding/base64"
 	"encoding/json"
+	"fmt"
+	"html/template"
 	"io"
 	"io/ioutil"
+	"net/http"
 	"net/url"
 	"strings"
 
 	"github.com/kurin/blazer/b2"
+	"github.com/kurin/cloudpipe/internal/b2assets"
 )
 
 type authTicket struct {
 	ID  string `json:"accountId"`
 	Key string `json:"accountKey"`
 }
+
+var (
+	statusFuncMap = template.FuncMap{
+		"inc": func(i int) int { return i + 1 },
+	}
+	statusTemplate = template.Must(template.New("status").Funcs(statusFuncMap).Parse(string(b2assets.MustAsset("data/status.html"))))
+)
 
 func readAuth(file string) (authTicket, error) {
 	at := authTicket{}
@@ -58,6 +69,15 @@ func New(ctx context.Context, auth string, uri *url.URL) (*Endpoint, error) {
 	if err != nil {
 		return nil, err
 	}
+
+	hf := http.HandlerFunc(func(rw http.ResponseWriter, r *http.Request) {
+		st := client.Status()
+		statusTemplate.Execute(rw, st)
+	})
+
+	http.Handle("/progress", hf)
+	go func() { fmt.Println(http.ListenAndServe("0.0.0.0:8822", nil)) }()
+
 	bucket, err := client.NewBucket(ctx, uri.Host, nil)
 	return &Endpoint{
 		b2:   bucket,
