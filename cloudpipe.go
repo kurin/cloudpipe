@@ -68,6 +68,7 @@ func parseURI(ctx context.Context, uri string) (endpoint, error) {
 			return nil, err
 		}
 		ep.Resume = *resume
+		ep.Connections = *connections
 		return ep, nil
 	case "file", "":
 		return file.Path(url.Path), nil
@@ -89,12 +90,12 @@ func main() {
 
 	src, err := parseURI(ctx, srcArg)
 	if err != nil {
-		log.Fatal(err)
+		log.Fatalf("%s: %v", srcArg, err)
 	}
 
 	dst, err := parseURI(ctx, dstArg)
 	if err != nil {
-		log.Fatal(err)
+		log.Fatalf("%s: %v", dstArg, err)
 	}
 
 	if *labels != "" {

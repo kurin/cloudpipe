@@ -51,8 +51,8 @@ func readAuth(file string) (authTicket, error) {
 }
 
 type Endpoint struct {
-	TrueNames bool
-	Resume    bool
+	Connections int
+	Resume      bool
 
 	attrs *b2.Attrs
 	b2    *b2.Bucket
@@ -87,7 +87,7 @@ func New(ctx context.Context, auth string, uri *url.URL) (*Endpoint, error) {
 func (e *Endpoint) Writer(ctx context.Context) (io.WriteCloser, error) {
 	name := e.path
 	w := e.b2.Object(name).NewWriter(ctx)
-	w.ConcurrentUploads = 4
+	w.ConcurrentUploads = e.Connections
 	w.Resume = e.Resume
 	if e.attrs != nil {
 		w = w.WithAttrs(e.attrs)
@@ -97,7 +97,7 @@ func (e *Endpoint) Writer(ctx context.Context) (io.WriteCloser, error) {
 
 func (e *Endpoint) Reader(ctx context.Context) (io.ReadCloser, error) {
 	r := e.b2.Object(e.path).NewReader(ctx)
-	r.ConcurrentDownloads = 4
+	r.ConcurrentDownloads = e.Connections
 	return r, nil
 }
 
