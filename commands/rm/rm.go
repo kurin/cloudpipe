@@ -91,7 +91,7 @@ func (c *Cmd) parseURI(ctx context.Context, uri string) (endpoint, error) {
 	return ep, nil
 	*/
 	case "b2":
-		ep, err := b2.New(ctx, c.auth, url)
+		ep, err := b2.New(ctx, url)
 		if err != nil {
 			return nil, err
 		}

@@ -20,19 +20,16 @@ import (
 	"fmt"
 	"html/template"
 	"io"
-	"io/ioutil"
 	"net/http"
 	"net/url"
+	"os"
+	"os/user"
+	"path/filepath"
 	"strings"
 
 	"github.com/kurin/blazer/b2"
 	"github.com/kurin/cloudpipe/internal/b2assets"
 )
-
-type authTicket struct {
-	ID  string `json:"accountId"`
-	Key string `json:"accountKey"`
-}
 
 var (
 	statusFuncMap = template.FuncMap{
@@ -40,15 +37,6 @@ var (
 	}
 	statusTemplate = template.Must(template.New("status").Funcs(statusFuncMap).Parse(string(b2assets.MustAsset("data/status.html"))))
 )
-
-func readAuth(file string) (authTicket, error) {
-	at := authTicket{}
-	data, err := ioutil.ReadFile(file)
-	if err != nil {
-		return at, err
-	}
-	return at, json.Unmarshal(data, &at)
-}
 
 type Endpoint struct {
 	Connections int
@@ -65,8 +53,43 @@ type Endpoint struct {
 	path   string
 }
 
-func New(ctx context.Context, auth string, uri *url.URL) (*Endpoint, error) {
-	at, err := readAuth(auth)
+type Config struct {
+	ID  string `json:"accountId"`
+	Key string `json:"accountKey"`
+}
+
+func Save(c *Config) error {
+	u, err := user.Current()
+	if err != nil {
+		return err
+	}
+	f, err := os.Create(filepath.Join(u.HomeDir, ".cloudpipe_b2"))
+	if err != nil {
+		return err
+	}
+	enc := json.NewEncoder(f)
+	return enc.Encode(c)
+}
+
+func loadAuth() (*Config, error) {
+	u, err := user.Current()
+	if err != nil {
+		return nil, err
+	}
+	f, err := os.Open(filepath.Join(u.HomeDir, ".cloudpipe_b2"))
+	if err != nil {
+		return nil, err
+	}
+	dec := json.NewDecoder(f)
+	c := &Config{}
+	if err := dec.Decode(c); err != nil {
+		return nil, err
+	}
+	return c, nil
+}
+
+func New(ctx context.Context, uri *url.URL) (*Endpoint, error) {
+	at, err := loadAuth()
 	if err != nil {
 		return nil, err
 	}
