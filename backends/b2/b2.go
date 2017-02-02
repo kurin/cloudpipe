@@ -54,6 +54,11 @@ type Endpoint struct {
 	Connections int
 	Resume      bool
 
+	Hide      bool
+	Hidden    bool
+	Recursive bool
+	Bucket    bool
+
 	attrs *b2.Attrs
 	b2    *b2.Bucket
 	path  string
@@ -113,4 +118,50 @@ func (e *Endpoint) Label(l string) {
 		m[strings.Trim(key, " ")] = strings.Trim(val, " ")
 	}
 	e.attrs = &b2.Attrs{Info: m}
+}
+
+func (e *Endpoint) Remove(ctx context.Context) error {
+	if !e.Recursive {
+		if e.Bucket {
+			return e.b2.Delete(ctx)
+		}
+
+		obj := e.b2.Object(e.path)
+		if e.Hide {
+			return obj.Hide(ctx)
+		}
+		return obj.Delete(ctx)
+	}
+
+	lister := e.b2.ListCurrentObjects
+	if e.Hidden {
+		lister = e.b2.ListObjects
+	}
+
+	c := &b2.Cursor{Name: e.path}
+	for {
+		list, ncur, err := lister(ctx, 100, c)
+		if err != nil && err != io.EOF {
+			return err
+		}
+		c = ncur
+		for _, obj := range list {
+			op := obj.Delete
+			if e.Hide {
+				op = obj.Hide
+			}
+			if err := op(ctx); err != nil {
+				return err
+			}
+		}
+		if err == io.EOF {
+			break
+		}
+	}
+
+	if e.Bucket {
+		return e.b2.Delete(ctx)
+	}
+
+	return nil
 }
