@@ -21,6 +21,7 @@ import (
 
 	"github.com/google/subcommands"
 	"github.com/kurin/cloudpipe/commands/cp"
+	"github.com/kurin/cloudpipe/commands/ls"
 	"github.com/kurin/cloudpipe/commands/rm"
 )
 
@@ -34,6 +35,7 @@ var (
 func main() {
 	subcommands.Register(&cp.Cmd{}, "")
 	subcommands.Register(&rm.Cmd{}, "")
+	subcommands.Register(&ls.Cmd{}, "")
 	flag.Parse()
 
 	ctx := context.Background()

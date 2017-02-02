@@ -59,9 +59,10 @@ type Endpoint struct {
 	Recursive bool
 	Bucket    bool
 
-	attrs *b2.Attrs
-	b2    *b2.Bucket
-	path  string
+	attrs  *b2.Attrs
+	b2     *b2.Client
+	bucket string
+	path   string
 }
 
 func New(ctx context.Context, auth string, uri *url.URL) (*Endpoint, error) {
@@ -82,16 +83,20 @@ func New(ctx context.Context, auth string, uri *url.URL) (*Endpoint, error) {
 	http.Handle("/progress", hf)
 	go func() { fmt.Println(http.ListenAndServe("0.0.0.0:8822", nil)) }()
 
-	bucket, err := client.NewBucket(ctx, uri.Host, nil)
 	return &Endpoint{
-		b2:   bucket,
-		path: strings.TrimPrefix(uri.Path, "/"),
+		b2:     client,
+		bucket: uri.Host,
+		path:   strings.TrimPrefix(uri.Path, "/"),
 	}, nil
 }
 
 func (e *Endpoint) Writer(ctx context.Context) (io.WriteCloser, error) {
+	bucket, err := e.b2.NewBucket(ctx, e.bucket, nil)
+	if err != nil {
+		return nil, err
+	}
 	name := e.path
-	w := e.b2.Object(name).NewWriter(ctx)
+	w := bucket.Object(name).NewWriter(ctx)
 	w.ConcurrentUploads = e.Connections
 	w.Resume = e.Resume
 	if e.attrs != nil {
@@ -101,7 +106,11 @@ func (e *Endpoint) Writer(ctx context.Context) (io.WriteCloser, error) {
 }
 
 func (e *Endpoint) Reader(ctx context.Context) (io.ReadCloser, error) {
-	r := e.b2.Object(e.path).NewReader(ctx)
+	bucket, err := e.b2.Bucket(ctx, e.bucket)
+	if err != nil {
+		return nil, err
+	}
+	r := bucket.Object(e.path).NewReader(ctx)
 	r.ConcurrentDownloads = e.Connections
 	return r, nil
 }
@@ -120,25 +129,67 @@ func (e *Endpoint) Label(l string) {
 	e.attrs = &b2.Attrs{Info: m}
 }
 
-func (e *Endpoint) Remove(ctx context.Context) error {
-	if !e.Recursive {
-		if e.Bucket {
-			return e.b2.Delete(ctx)
+func (e *Endpoint) List(ctx context.Context) (chan string, chan error, error) {
+	bucket, err := e.b2.Bucket(ctx, e.bucket)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	sch := make(chan string)
+	ech := make(chan error)
+
+	go func() {
+		defer close(sch)
+		defer close(ech)
+
+		lister := bucket.ListCurrentObjects
+		if e.Hidden {
+			lister = bucket.ListObjects
 		}
 
-		obj := e.b2.Object(e.path)
+		c := &b2.Cursor{Prefix: e.path, Delimiter: "/"}
+		for {
+			list, ncur, err := lister(ctx, 100, c)
+			if err != nil && err != io.EOF {
+				ech <- err
+				return
+			}
+			c = ncur
+			for _, obj := range list {
+				sch <- obj.Name()
+			}
+			if err == io.EOF {
+				return
+			}
+		}
+	}()
+
+	return sch, ech, nil
+}
+
+func (e *Endpoint) Remove(ctx context.Context) error {
+	bucket, err := e.b2.Bucket(ctx, e.bucket)
+	if err != nil {
+		return err
+	}
+	if !e.Recursive {
+		if e.Bucket {
+			return bucket.Delete(ctx)
+		}
+
+		obj := bucket.Object(e.path)
 		if e.Hide {
 			return obj.Hide(ctx)
 		}
 		return obj.Delete(ctx)
 	}
 
-	lister := e.b2.ListCurrentObjects
+	lister := bucket.ListCurrentObjects
 	if e.Hidden {
-		lister = e.b2.ListObjects
+		lister = bucket.ListObjects
 	}
 
-	c := &b2.Cursor{Name: e.path}
+	c := &b2.Cursor{Prefix: e.path}
 	for {
 		list, ncur, err := lister(ctx, 100, c)
 		if err != nil && err != io.EOF {
@@ -160,7 +211,7 @@ func (e *Endpoint) Remove(ctx context.Context) error {
 	}
 
 	if e.Bucket {
-		return e.b2.Delete(ctx)
+		return bucket.Delete(ctx)
 	}
 
 	return nil
