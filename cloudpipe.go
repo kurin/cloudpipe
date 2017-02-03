@@ -24,6 +24,7 @@ import (
 	"github.com/kurin/cloudpipe/commands/cp"
 	"github.com/kurin/cloudpipe/commands/ls"
 	"github.com/kurin/cloudpipe/commands/rm"
+	"github.com/kurin/cloudpipe/commands/stat"
 )
 
 var (
@@ -37,6 +38,7 @@ func main() {
 	subcommands.Register(&cp.Cmd{}, "")
 	subcommands.Register(&rm.Cmd{}, "")
 	subcommands.Register(&ls.Cmd{}, "")
+	subcommands.Register(&stat.Cmd{}, "")
 	subcommands.Register(&b2config.Cmd{}, "configuration")
 	flag.Parse()
 

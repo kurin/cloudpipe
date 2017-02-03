@@ -15,6 +15,7 @@
 package b2
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -26,6 +27,7 @@ import (
 	"os/user"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/kurin/blazer/b2"
 	"github.com/kurin/cloudpipe/internal/b2assets"
@@ -238,4 +240,60 @@ func (e *Endpoint) Remove(ctx context.Context) error {
 	}
 
 	return nil
+}
+
+func fsize(s int64) string {
+	sfxs := "BkMGT"
+	f := float64(s)
+	for i := 0; i < 5; i++ {
+		if f < 1024 {
+			return fmt.Sprintf("%.2f%c", f, sfxs[i])
+		}
+		f /= 1024
+	}
+	return fmt.Sprintf("%dB", s)
+}
+
+func (e *Endpoint) Stat(ctx context.Context) (string, error) {
+	bucket, err := e.b2.Bucket(ctx, e.bucket)
+	if err != nil {
+		return "", err
+	}
+	attrs, err := bucket.Object(e.path).Attrs(ctx)
+	if err != nil {
+		return "", err
+	}
+	kv := map[string]string{
+		"Name":         attrs.Name,
+		"Size":         fsize(attrs.Size),
+		"Content-Type": attrs.ContentType,
+		"Uploaded":     attrs.UploadTimestamp.Format(time.RubyDate),
+	}
+	order := []string{"Name", "Size", "Content-Type", "Uploaded"}
+	if !attrs.LastModified.IsZero() {
+		kv["Last Modified"] = attrs.LastModified.Format(time.RubyDate)
+		order = append(order, "Last Modified")
+	}
+	if len(attrs.SHA1) == 20 {
+		kv["SHA1"] = attrs.SHA1
+		order = append(order, "SHA1")
+	}
+	for key, val := range attrs.Info {
+		kv[key] = val
+		order = append(order, key)
+	}
+
+	var max int
+
+	for key := range kv {
+		if len(key) > max {
+			max = len(key)
+		}
+	}
+
+	buf := &bytes.Buffer{}
+	for _, key := range order {
+		fmt.Fprintf(buf, "%*s: %s\n", max, key, kv[key])
+	}
+	return buf.String(), nil
 }
