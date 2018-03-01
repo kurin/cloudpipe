@@ -1,6 +1,15 @@
 <html>
 <head><title>b2 client status</title></head>
 <body>
+  <h1>method latency</h1>
+    {{range $method, $hist := .MethodHist}}
+    <h2>{{ $method }}</h2>
+    <table>
+      {{range $index, $count := $hist}}
+      <tr><td>{{pRange $index}}</td><td><progress value="{{$count}}" max="{{lookUp $.Calls $method}}"></progress></td></tr>
+      {{end}}
+    </table>
+    {{end}}
 	<h1>uploads</h1>
 		{{range $name, $val := .Writers}}
 		<h2>{{ $name }}</h2>

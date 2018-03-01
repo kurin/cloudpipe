@@ -21,6 +21,7 @@ import (
 	"fmt"
 	"html/template"
 	"io"
+	"math"
 	"net/http"
 	"net/url"
 	"os"
@@ -36,6 +37,15 @@ import (
 var (
 	statusFuncMap = template.FuncMap{
 		"inc": func(i int) int { return i + 1 },
+		"pRange": func(i int) string {
+			f := float64(i)
+			min := int(math.Pow(2, f)) - 1
+			max := min + int(math.Pow(2, f))
+			return fmt.Sprintf("%v - %v", time.Duration(min)*time.Millisecond, time.Duration(max)*time.Millisecond)
+		},
+		"lookUp": func(m map[string]int, s string) int {
+			return m[s]
+		},
 	}
 	statusTemplate = template.Must(template.New("status").Funcs(statusFuncMap).Parse(string(b2assets.MustAsset("data/status.html"))))
 )
@@ -90,6 +100,13 @@ func loadAuth() (*Config, error) {
 	return c, nil
 }
 
+type status struct {
+	Writers    map[string]*b2.WriterStatus
+	Readers    map[string]*b2.ReaderStatus
+	MethodHist map[string][]int
+	Calls      map[string]int
+}
+
 func New(ctx context.Context, uri *url.URL) (*Endpoint, error) {
 	at, err := loadAuth()
 	if err != nil {
@@ -102,7 +119,12 @@ func New(ctx context.Context, uri *url.URL) (*Endpoint, error) {
 
 	hf := http.HandlerFunc(func(rw http.ResponseWriter, r *http.Request) {
 		st := client.Status()
-		statusTemplate.Execute(rw, st)
+		var s status
+		s.Readers = st.Readers
+		s.Writers = st.Writers
+		s.Calls = st.MethodInfo.CountByMethod()
+		s.MethodHist = st.MethodInfo.HistogramByMethod()
+		statusTemplate.Execute(rw, s)
 	})
 
 	http.Handle("/progress", hf)
@@ -124,6 +146,7 @@ func (e *Endpoint) Writer(ctx context.Context) (io.WriteCloser, error) {
 	w := bucket.Object(name).NewWriter(ctx)
 	w.ConcurrentUploads = e.Connections
 	w.Resume = e.Resume
+	w.ChunkSize = 5e6
 	if e.attrs != nil {
 		w = w.WithAttrs(e.attrs)
 	}
